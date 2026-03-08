@@ -28,17 +28,27 @@ Current government emergency systems (911, 112, etc.) were designed for a pre-sm
 $$
 M = \langle S, A, T, R, \gamma \rangle
 $$
-The state space $S$ represents all possible configurations of the environment. The action space $A$ represents all possible agent decisions. The transition function gives the probability of reaching state $s'$ given current state $s$ and action $a$:
+Each element maps directly to a component in the Implementation section:
+
+| Element | Definition | Implementation |
+| --- | --- | --- |
+| $S$ (state space) | All possible environment configurations | Observation Model (11-field dict from `step()`) and internal state (ground truth, timers, personal data) |
+| $A$ (action space) | All possible agent decisions | Action Model (11 tools: `triage_assess`, `route_responder`, `wait`, etc.) |
+| $T$ (transition) | Probability of next state given current state and action | Constraint matrix, deterioration model, responder arrival model, time model |
+| $R$ (reward) | Scalar value for each state transition | Dense rewards (22 per-step signals) + sparse rewards (12 episode-end signals) + 9 verifiers |
+| $\gamma$ (discount) | Weight of future vs immediate rewards | Handled by GRPOTrainer externally, not inside the environment |
+
+The transition function gives the probability of reaching state $s'$ given current state $s$ and action $a$:
 
 $$
 T(s' \mid s, a) : S \times A \times S \to [0,1]
 $$
+
 The reward function assigns a scalar value to each state transition:
 
 $$
 R(s, a, s') : S \times A \times S \to \mathbb{R}
 $$
-The discount factor $\gamma \in [0, 1)$ controls the weight of future rewards relative to immediate ones. A low $\gamma$ makes the agent favor immediate rewards. A high $\gamma$ makes the agent plan further ahead.
 
 5. **Trajectory** is the complete record of one episode. It captures every state the environment passed through, every action the agent took, and every reward received:
 
@@ -50,13 +60,17 @@ An episode starts at `reset()` and ends when the crisis is resolved, the step bu
 
 6. **Reinforcement Learning with Verifiable Rewards (RLVR)** replaces learned reward models with programmatic verifiers. These verifiers are simple functions that return deterministic correctness signals, 1.0 for correct or 0.0 for incorrect. This eliminates reward model training and provides reproducible feedback.
 
-7. **Specification** $d = (\tau, \mathcal{A}, \rho)$ parameterizes the MDP for a given training configuration. The task specification $\tau$ defines crisis scenarios, caller profiles, environmental conditions. The action specification $\mathcal{A}$ defines available tools such as triage classifiers, routing APIs, translation services, silent-mode interfaces. The reward specification $\rho$ defines deterministic scoring rules for policy compliance.
+7. **Dense rewards** fire after every `step()`. They give the agent immediate feedback on individual actions such as asking a relevant triage question (+8), dispatching the correct responder (+20), or leaking private data (-15). Dense rewards make learning faster because the agent does not have to wait until the episode ends to know whether an action was good.
 
-8. **Prioritized Level Replay (PLR)** is an experience replay method that scores each environment configuration by its estimated learning potential. This project uses rubric score based replay instead. Each environment configuration is scored by the agent's worst verifier score on that scenario. Configurations where the agent scores poorly on any verifier are replayed more often. With probability $p$ the system replays a high-learning-potential scenario from the buffer. With probability $1-p$ it samples a new scenario from the generator.
+8. **Sparse rewards** fire once at episode end. They evaluate the full trajectory for outcomes that can only be judged after the episode completes such as whether the victim was rescued (+50), whether triage was perfect (+25), or whether the agent adapted to schema drift (+25). Sparse rewards are harder to learn from but capture goals that no single action can achieve.
 
-9. **Unsupervised Environment Design (UED)** generates training environments without manual curriculum design. ACCEL (Adversarially Compounding Complexity by Editing Levels) makes small mutations to previously high regret scenarios to compound complexity over time. Regret here means the gap between optimal performance and actual performance on a given scenario.
+9. **Specification** $d = (\tau, \mathcal{A}, \rho)$ parameterizes the MDP for a given training configuration. The task specification $\tau$ defines crisis scenarios, caller profiles, environmental conditions. The action specification $\mathcal{A}$ defines available tools such as triage classifiers, routing APIs, translation services, silent-mode interfaces. The reward specification $\rho$ defines deterministic scoring rules for policy compliance.
 
-10. **Zone of Proximal Development** is a concept from educational psychology. It describes the region between what a learner can do independently and what is too difficult. Learning is most effective when tasks fall within this zone. In curriculum learning for RL, this translates to training on scenarios that are challenging but solvable.
+10. **Prioritized Level Replay (PLR)** is an experience replay method that scores each environment configuration by its estimated learning potential. This project uses rubric score based replay instead. Each environment configuration is scored by the agent's worst verifier score on that scenario. Configurations where the agent scores poorly on any verifier are replayed more often. With probability $p$ the system replays a high-learning-potential scenario from the buffer. With probability $1-p$ it samples a new scenario from the generator.
+
+11. **Unsupervised Environment Design (UED)** generates training environments without manual curriculum design. ACCEL (Adversarially Compounding Complexity by Editing Levels) makes small mutations to previously high regret scenarios to compound complexity over time. Regret here means the gap between optimal performance and actual performance on a given scenario.
+
+12. **Zone of Proximal Development** is a concept from educational psychology. It describes the region between what a learner can do independently and what is too difficult. Learning is most effective when tasks fall within this zone. In curriculum learning for RL, this translates to training on scenarios that are challenging but solvable.
 
 ## Phase 1. Specification
 
@@ -191,9 +205,9 @@ $$
 
 across the 9 verifiers for the current batch and compares it against two thresholds $\theta_{\text{success}}$ and $\theta_{\text{failure}}$:
 
-- When $d_{\min} > \theta_{\text{success}}$: the system increases complexity using ACCEL (see Terminology #9), which mutates high-regret scenarios to compound difficulty.
-- When $d_{\min} < \theta_{\text{failure}}$: the system simplifies the bottleneck dimension using SFL (see Terminology #9), which selects levels with positive but imperfect solve rates.
-- When $\theta_{\text{failure}} \leq d_{\min} \leq \theta_{\text{success}}$: the agent is in the zone of proximal development (see Terminology #10). The system makes targeted refinements to the weakest verifier dimension while maintaining overall complexity.
+- When $d_{\min} > \theta_{\text{success}}$: the system increases complexity using ACCEL (see Terminology #11), which mutates high-regret scenarios to compound difficulty.
+- When $d_{\min} < \theta_{\text{failure}}$: the system simplifies the bottleneck dimension using SFL (see Terminology #11), which selects levels with positive but imperfect solve rates.
+- When $\theta_{\text{failure}} \leq d_{\min} \leq \theta_{\text{success}}$: the agent is in the zone of proximal development (see Terminology #12). The system makes targeted refinements to the weakest verifier dimension while maintaining overall complexity.
 
 The updated specification $d'$ feeds back into Phase 1, closing the loop for automatic curriculum generation. This separation ensures that an agent cannot mask poor protocol compliance behind high outcome rewards.
 
