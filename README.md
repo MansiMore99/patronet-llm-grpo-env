@@ -8,41 +8,146 @@ Current government emergency systems (911, 112, etc.) were designed for a pre-sm
 
 ## Terminology
 
-1. **OpenEnv** is an open source framework from Meta and HuggingFace that provides reusable environments for training and deploying AI agents. The framework uses Gymnasium style APIs `reset()`, `step(action)`, `state()`, and `close()` running as FastAPI servers inside Docker containers. Each environment runs as a containerized microservice. Environments integrate with GRPOTrainer through the `rollout_func` argument for environment driven rewards.
+1. **OpenEnv** is an open source framework from Meta and HuggingFace that provides reusable environments for training and deploying AI agents. The framework uses Gymnasium style APIs `reset()`, `step(action)`, `state()`, and `close()` running as FastAPI servers inside docker containers. Each environment runs as a containerized microservice and integrate with GRPOTrainer through the `rollout_func` argument for rewards.
 
-2. **AgentBeats** turns benchmarks into agents. The platform distinguishes between Green agents and Purple agents. Green agents are evaluator agents that define environments, issue tasks, collect results, compute metrics. Purple agents are competing agents under test. All agents communicate via the Agent2Agent (A2A) protocol for task management. They use MCP for tool and resource access.
+2. **AgentBeats** turns benchmarks into agents. The platform distinguishes between Green and Purple agents. Green agents are evaluator agents that define environments, issue tasks, collect results, compute metrics. Purple agents are competing agents under test. All agents communicate via the Agent2Agent (A2A) protocol for task management. They use MCP for tool and resource access.
 
-3. **Pi-bench** is a policy compliance benchmark that evaluates AI agents across 9 diagnostic dimensions. Compliance tests whether the agent follows explicit rules. Understanding tests interpretation of policies. Robustness tests performance under adversarial pressure. Process tests ordering constraints. Restraint tests avoidance of over refusing valid actions. Conflict Resolution tests handling of contradicting rules. Detection tests identification of violations. Explainability tests justification of decisions. Adaptation tests recognition of condition-triggered changes. The benchmark scores observable traces using deterministic rules. No LLM judges are used. It spans 7 policy surfaces, Access, Privacy, Disclosure, Process, Safety, Governance, Ambiguity.
+3. **Pi-bench** is a policy compliance benchmark that evaluates agents across 9 diagnostic dimensions. The benchmark scores observable traces using 7 policy surfaces, Access, Privacy, Disclosure, Process, Safety, Governance, Ambiguity.
+   - Compliance tests whether the agent follows explicit rules.
+   - Understanding tests interpretation of policies.
+   - Robustness tests performance under adversarial pressure.
+   - Process tests ordering constraints.
+   - Restraint tests avoidance of over refusing valid actions.
+   - Conflict Resolution tests handling of contradicting rules.
+   - Detection tests identification of violations.
+   - Explainability tests justification of decisions.
+   - Adaptation tests recognition of condition-triggered changes.
 
-4. **Markov Decision Process (MDP)** is defined as the tuple $M = \langle S, A, T, R, \gamma \rangle$. The state space $S$ represents all possible configurations of the environment. The action space $A$ represents all possible agent decisions. The transition function $T(s' \mid s, a)$ gives the probability of reaching state $s'$ given current state $s$ and action $a$. Formally $T$ maps $S \times A \times S \to [0,1]$. The reward function $R(s, a, s')$ assigns a scalar value to each state transition. Formally $R$ maps $S \times A \times S \to \mathbb{R}$. The discount factor $\gamma \in [0, 1)$ controls the weight of future rewards relative to immediate ones. A low $\gamma$ makes the agent favor immediate rewards. A high $\gamma$ makes the agent plan further ahead.
+4. **Markov Decision Process (MDP)** is defined as the tuple
 
-5. **Reinforcement Learning with Verifiable Rewards (RLVR)** replaces learned reward models with programmatic verifiers. These verifiers are simple functions that return deterministic correctness signals such as 1.0 for correct or 0.0 for incorrect. This eliminates reward model training. It provides reproducible feedback. It resists reward hacking. For agent tasks specifically, Agent-RLVR extends this paradigm with teacher style guidance to address sparse rewards.
+$$
+M = \langle S, A, T, R, \gamma \rangle
+$$
+The state space $S$ represents all possible configurations of the environment. The action space $A$ represents all possible agent decisions. The transition function gives the probability of reaching state $s'$ given current state $s$ and action $a$:
 
-6. **Specification** $d = (\tau, \mathcal{A}, \rho)$ parameterizes the MDP for a given training configuration. The task specification $\tau$ defines crisis scenarios, caller profiles, environmental conditions. It shapes the state space $S$ and transition function $T$. The action specification $\mathcal{A}$ defines available tools such as triage classifiers, routing APIs, translation services, silent-mode interfaces. It shapes the action space $A$. The reward specification $\rho$ defines deterministic scoring rules for policy compliance. It shapes the reward function $R$.
+$$
+T(s' \mid s, a) : S \times A \times S \to [0,1]
+$$
+The reward function assigns a scalar value to each state transition:
 
-7. **Prioritized Level Replay (PLR)** is an experience replay method that scores each environment configuration by its estimated learning potential. Classical PLR uses temporal difference errors from a value function, but GRPO (the policy gradient method used by GRPOTrainer) does not maintain a value function. This project uses rubric-score-based replay instead: each environment configuration is scored by the agent's worst verifier score on that scenario. Configurations where the agent scores poorly on any verifier are replayed more often. With probability $p$ the system replays a high-learning-potential scenario from the buffer. With probability $1-p$ it samples a new scenario from the generator. This achieves the same curriculum effect as TD-error-based PLR without requiring a separate value function.
+$$
+R(s, a, s') : S \times A \times S \to \mathbb{R}
+$$
+The discount factor $\gamma \in [0, 1)$ controls the weight of future rewards relative to immediate ones. A low $\gamma$ makes the agent favor immediate rewards. A high $\gamma$ makes the agent plan further ahead.
 
-8. **Unsupervised Environment Design (UED)** generates training environments without manual curriculum design. ACCEL (Adversarially Compounding Complexity by Editing Levels) makes small mutations to previously high regret scenarios to compound complexity over time. Regret here means the gap between optimal performance and actual performance on a given scenario. Sampling For Learnability (SFL) trains on levels with positive but imperfect solve rates. Recent research shows that solve rate correlates better with actual learning progress than regret based approximations.
+5. **Reinforcement Learning with Verifiable Rewards (RLVR)** replaces learned reward models with programmatic verifiers. These verifiers are simple functions that return deterministic correctness signals, 1.0 for correct or 0.0 for incorrect. This eliminates reward model training and provides reproducible feedback.
+
+6. **Specification** $d = (\tau, \mathcal{A}, \rho)$ parameterizes the MDP for a given training configuration. The task specification $\tau$ defines crisis scenarios, caller profiles, environmental conditions. The action specification $\mathcal{A}$ defines available tools such as triage classifiers, routing APIs, translation services, silent-mode interfaces. The reward specification $\rho$ defines deterministic scoring rules for policy compliance.
+
+7. **Prioritized Level Replay (PLR)** is an experience replay method that scores each environment configuration by its estimated learning potential. This project uses rubric score based replay instead. Each environment configuration is scored by the agent's worst verifier score on that scenario. Configurations where the agent scores poorly on any verifier are replayed more often. With probability $p$ the system replays a high-learning-potential scenario from the buffer. With probability $1-p$ it samples a new scenario from the generator.
+
+8. **Unsupervised Environment Design (UED)** generates training environments without manual curriculum design. ACCEL (Adversarially Compounding Complexity by Editing Levels) makes small mutations to previously high regret scenarios to compound complexity over time. Regret here means the gap between optimal performance and actual performance on a given scenario.
 
 9. **Zone of Proximal Development** is a concept from educational psychology. It describes the region between what a learner can do independently and what is too difficult. Learning is most effective when tasks fall within this zone. In curriculum learning for RL, this translates to training on scenarios that are challenging but solvable.
 
-## Phase 1. Specification-Driven Generation
+## Phase 1. Specification
 
-The specification $d = (\tau, \mathcal{A}, \rho)$ defines every aspect of the emergency response MDP $M = \langle S, A, T, R, \gamma \rangle$. The task specification $\tau$ describes crisis types (medical, fire, violence, natural disaster, mental health), caller profiles (language spoken, communication ability, location specificity), infrastructure states (network capacity, responder availability, hospital capacity). These scenario dimensions encode the Five Fatal Gaps that real emergency systems face: Capacity (overwhelmed call centers), Language (non-English callers), Silence (callers who cannot speak), Routing (wrong responder dispatched), Guidance (no help between dispatch and arrival). The action specification $\mathcal{A}$ lists available MCP tools for triage classification, multilingual translation, silent-mode interaction, responder routing, real-time guidance delivery. The reward specification $\rho$ encodes deterministic scoring functions across emergency-specific policy surfaces such as triage accuracy, routing correctness, guidance compliance, escalation protocol, privacy preservation, multi-agency coordination, communication accessibility. Each generated environment conforms to the OpenEnv API and exposes the standard `reset()`, `step(action)`, `state()` interface.
+The specification is a 3 value tuple
 
-The specification drives procedural generation of training scenarios across three independent complexity axes. In Case 1 (static task, $\tau$ fixed), crisis scenarios remain constant while $\mathcal{A}$ and $\rho$ grow in sophistication. The agent starts with 3 tools (triage_assess, route_responder, wait) and progresses through 5 complexity levels to all 11 tools (see Tool Availability table in Implementation). This isolates the agent's ability to leverage richer toolkits on familiar problems. In Case 2 (static action space, $\mathcal{A}$ fixed), the tool suite stays constant while $\tau$ scales from single caller English only scenarios to mass-casualty events with infrastructure failure. This tests the agent's ability to handle growing scenario complexity with fixed capabilities. OpenAI's Automatic Domain Randomization (ADR) exemplifies this approach by growing the distribution of environment parameters when the agent succeeds and shrinking when it fails. In Case 3 (static reward, $\rho$ fixed), the evaluation rubric stays constant while both $\tau$ and $\mathcal{A}$ expand. The reward signal remains stable even as the environment grows more complex. The agent must generalize rubric compliance to novel task-tool combinations. Case 3 is the recommended starting configuration for benchmarking because it provides a consistent evaluation standard against which to measure generalization.
+$$
+d = (\tau, \mathcal{A}, \rho)
+$$
 
-## Phase 2. Environment Generation and Agent Rollout
+parameterizes every aspect of the emergency response MDP $M = \langle S, A, T, R, \gamma \rangle$.
 
-The generator creates environment instances from the Phase 1 specification using procedural content generation. Each instance receives a deterministic seed for reproducibility and an annotated goal state that defines the optimal response outcome. Every generated environment runs as a FastAPI endpoint inside a Docker container. The OpenEnv framework supports 2048 concurrent sessions on a single node and up to 16384 across multi-node SLURM clusters. Generated scenarios are validated against constraint checkers to ensure realistic caller profiles, valid geographic contexts, plausible responder availability.
+The task specification $\tau$ encodes the emergency systems across three scenario dimensions:
 
-Agent rollouts follow the GRPOTrainer integration pattern through a custom `rollout_func` that overrides the default text-generation loop. The agent calls `reset()` to receive an initial crisis observation, generates a completion via vLLM, parses it into an action, calls `step(action)` to receive an observation with reward, then repeats until the episode terminates. An episode ends when the crisis is resolved, the agent exceeds its step budget, or a critical failure occurs. Rewards are computed inside the environment using deterministic verifiable functions. Dense rewards fire after each step and sparse rewards fire at episode end (see Implementation for specific signals and magnitudes). Each completed episode produces a trajectory $h = (s_0, a_0, r_0, s_1, a_1, r_1, \ldots, s_T)$ that feeds into Phase 3.
+| Dimension | Values | Failure Mode |
+| --- | --- | --- |
+| Crisis type | Medical, fire, violence, natural disaster, mental health | Routing, Guidance |
+| Caller profile | Language spoken, communication ability, location specificity | Language, Silence |
+| Infrastructure state | Network capacity, responder availability, hospital capacity | Capacity |
 
-## Phase 3. Oversight Analysis and Memory
+The action specification $\mathcal{A}$ lists available MCP tools for triage classification, multilingual translation, silent-mode interaction, responder routing, and real-time guidance delivery.
 
-Phase 3 evaluates agent trajectories at three levels of depth. Blackbox evaluation checks the final outcome (was the emergency resolved?). Glassbox evaluation checks the full sequence of actions (did the agent follow triage protocol before dispatch?). Whitebox evaluation tests each individual decision in isolation (was dispatching the second unit correct given available information?). These three levels reveal what went wrong, where it happened, why it happened.
+The reward specification $\rho$ encodes deterministic scoring functions across emergency policy surfaces such as triage accuracy, routing correctness, guidance compliance, escalation protocol, privacy preservation, multi-agency coordination, and communication accessibility.
 
-The rubric system uses 9 deterministic verifiers inspired by Pi-bench's trace-based, no-LLM-judge approach (see Implementation for full verifier definitions). The verifiers do not map one-to-one to Pi-bench's 9 diagnostic dimensions. Instead, the mapping is partial:
+Each generated environment conforms to the OpenEnv API and exposes the standard `reset()`, `step(action)`, `state()` interface.
+
+```python
+spec = Specification(
+  task=TaskSpec(
+    crisis_types=["medical", "fire", "violence"],
+    caller_profiles=["english_speaking", "non_verbal", "multilingual"],
+    infrastructure=["full_capacity", "degraded", "offline"]
+  ),
+  actions=ActionSpec(
+    tools=["triage_assess", "route_responder", "translate", "silent_mode"]
+  ),
+  reward=RewardSpec(
+    surfaces=["triage_accuracy", "routing_correctness", "privacy"]
+  )
+)
+
+env = generate_environment(spec, seed=42)  # deterministic OpenEnv instance
+obs = env.reset()
+while not done:
+  action = agent(obs)
+  obs, reward, done, info = env.step(action)
+```
+
+The specification drives procedural generation of training scenarios across three independent complexity axes:
+
+- **Case 1** (static task, $\tau$ fixed): Crisis scenarios remain constant while $\mathcal{A}$ and $\rho$ grow in sophistication. The agent starts with 3 tools (`triage_assess`, `route_responder`, `wait`) and progresses through 5 complexity levels to all 11 tools (see Tool Availability table in Implementation). This isolates the agent's ability to leverage richer toolkits on familiar problems.
+
+- **Case 2** (static action space, $\mathcal{A}$ fixed): The tool suite stays constant while $\tau$ scales from single caller English only scenarios to mass casualty events with infrastructure failure. This tests the agent's ability to handle growing scenario complexity with fixed capabilities.
+
+- **Case 3** (static reward, $\rho$ fixed): The evaluation rubric stays constant while both $\tau$ and $\mathcal{A}$ expand. The reward signal remains stable even as the environment grows more complex. The agent must generalize rubric compliance to novel task tool combinations. This provides a consistent evaluation standard against which to measure generalization.
+
+```python
+FIXED_TASK = TaskSpec(crisis=["medical"], caller=["english"], infra=["full"])
+FIXED_ACTIONS = ActionSpec(tools=["triage_assess", "route_responder", "wait"])
+FIXED_REWARD = RewardSpec(surfaces=["triage_accuracy", "routing_correctness"])
+
+for level in range(1, 6):
+  # Case 1: same crisis and stricter rubric
+  case1 = Specification(task=FIXED_TASK, actions=grow(level), reward=grow(level))
+
+  # Case 2: harder scenarios
+  case2 = Specification(task=grow(level), actions=FIXED_ACTIONS, reward=grow(level))
+
+  # Case 3: harder scenarios with more tools
+  case3 = Specification(task=grow(level), actions=grow(level), reward=FIXED_REWARD)
+
+  env = generate_environment(case3, seed=level)  # Case 3 recommended for benchmarking
+```
+
+## Phase 2. Environment Generation
+
+The generator creates environment instances using procedural content generation. Each instance receives a deterministic seed for reproducibility and an annotated goal state that defines the optimal response outcome. Every generated environment runs as a endpoint inside a docker container. The OpenEnv framework supports 2048 concurrent sessions on a single node and up to 16384 across multi-node clusters. Generated scenarios are validated against constraint checkers to ensure realistic caller profiles, valid geographic contexts, plausible responder availability.
+
+Agent rollouts follow the GRPOTrainer integration pattern through a custom `rollout_func` that overrides the default text generation loop:
+
+```mermaid
+flowchart TD
+  A[GRPOTrainer calls rollout_func] --> B["obs = env.reset()"]
+  B --> C["agent generates completion via vLLM"]
+  C --> D["parse completion into action"]
+  D --> E["obs, reward, done, info = env.step(action)"]
+  E --> F{episode done?}
+  F -- "crisis resolved / step budget exceeded / critical failure" --> G["emit trajectory h = (s₀,a₀,r₀, … ,sₜ)"]
+  G --> H[feed trajectory to Phase 3]
+  F -- no --> I["dense reward recorded"]
+  I --> C
+```
+
+An episode ends when the crisis is resolved, the agent exceeds its step budget, or a critical failure occurs. Rewards are computed inside the environment using deterministic verifiable functions. Dense rewards fire after each step and sparse rewards fire at episode end (see Implementation for specific signals and magnitudes). Each completed episode produces a trajectory $h = (s_0, a_0, r_0, s_1, a_1, r_1, \ldots, s_T)$ that feeds into next phase.
+
+## Phase 3. Verification
+
+Phase 3 evaluates agent trajectories at three levels of depth. Blackbox evaluation checks the final outcome like was the emergency resolved? Glassbox evaluation checks the full sequence of actions like did the agent follow triage protocol before dispatch?. Whitebox evaluation tests each individual decision in isolation like was dispatching the second unit correct given available information?. These three levels reveal what went wrong, where it happened, why it happened.
+
+The rubric system uses 9 deterministic verifiers inspired by Pi-bench's trace-based.
 
 | Pi-bench Dimension | Verifier Coverage | Status |
 | --- | --- | --- |
@@ -56,17 +161,33 @@ The rubric system uses 9 deterministic verifiers inspired by Pi-bench's trace-ba
 | Detection | Not tested. Would require injecting protocol violations by simulated responders | Gap |
 | Explainability | Not tested. Would require evaluating the agent's justification text | Gap |
 
-The 3 gaps (Conflict Resolution, Detection, Explainability) are acknowledged scope limitations. They can be added in future iterations by extending the scenario generator and adding verifiers. The OSA algorithm operates on the 9 verifier scores directly, not on Pi-bench dimension scores. Each verifier examines trajectories for specific patterns such as tool call sequences, state transitions, and timing constraints. All scoring is deterministic.
-
-The memory system stores trajectories in a prioritized experience buffer using rubric-score-based replay (see Terminology #7). Each environment configuration is scored by the agent's worst verifier score on that scenario. Configurations where the agent scores poorly are replayed more often than ones where performance is strong, creating an emergent curriculum without manual difficulty scheduling. The memory system also maintains rolling averages of each verifier score. These per-verifier statistics feed into Phase 4 to identify bottlenecks.
+The 3 gaps (Conflict Resolution, Detection, Explainability) are acknowledged scope limitations. Each verifier examines trajectories for specific patterns such as tool call sequences, state transitions, and timing constraints. All scoring is deterministic. Configurations where the agent scores poorly are replayed more often than ones where performance is strong, creating an emergent curriculum without manual difficulty scheduling. The memory system also maintains rolling averages of each verifier score. These per-verifier statistics feed into next phase to identify bottlenecks.
 
 ## Phase 4. Specification Update
 
-The Oversight Specification Adaptation (OSA) algorithm updates the environment specification based on agent performance. It operates in three stages. Stage 1 classifies each failed trajectory into one of three MDP subsets. Task failures ($\tau$-subset) occur when scenarios exceed the agent's planning capacity, such as incomplete area coverage or failure to discover victims. Tool failures ($\mathcal{A}$-subset) occur when the agent selects wrong actions or ignores available tools, such as dispatching a fire unit to a medical emergency. Reward failures ($\rho$-subset) occur when the agent achieves the task through non-compliant pathways, such as protocol violations that still yield positive outcomes.
+The Oversight Specification Adaptation (OSA) algorithm updates the environment specification based on agent performance. It operates in three stages.
 
-Stage 2 identifies the bottleneck dimension. It computes the proportion of total failures attributed to each MDP subset. The subset with the highest failure proportion is the bottleneck. Within the bottleneck, the verifier with the lowest average score identifies the specific weakness. For example, if the $\mathcal{A}$-subset is the bottleneck and RoutingVerifier scores lowest, the specification should adjust the action space to provide better routing tools or the scenario generator should produce more routing-focused training scenarios.
+**Stage 1** classifies each failed trajectory into one of three MDP subsets:
 
-Stage 3 operates on verifier scores, not aggregate reward. It computes the minimum verifier score $d_{\min}$ across the 9 verifiers for the current batch and compares it against two thresholds $\theta_{\text{success}}$ and $\theta_{\text{failure}}$. When $d_{\min} > \theta_{\text{success}}$ the system increases complexity using ACCEL (see Terminology #8), which mutates high-regret scenarios to compound difficulty. When $d_{\min} < \theta_{\text{failure}}$ the system simplifies the bottleneck dimension using SFL (see Terminology #8), which selects levels with positive but imperfect solve rates. When $d_{\min}$ falls between the two thresholds, the agent is in the zone of proximal development (see Terminology #9). The system then makes targeted refinements to the weakest verifier dimension while maintaining overall complexity. The updated specification $d'$ feeds back into Phase 1, closing the loop for automatic curriculum generation. This separation ensures that an agent cannot mask poor protocol compliance behind high outcome rewards.
+- Task failures (the $\tau$-subset) occur when scenarios exceed the agent's planning capacity, such as incomplete area coverage or failure to discover victims.
+- Tool failures (the $\mathcal{A}$-subset) occur when the agent selects wrong actions or ignores available tools, such as dispatching a fire unit to a medical emergency.
+- Reward failures (the $\rho$-subset) occur when the agent achieves the task through non-compliant pathways, such as protocol violations that still yield positive outcomes.
+
+**Stage 2** identifies the bottleneck dimension. It computes the proportion of total failures attributed to each MDP subset. The subset with the highest failure proportion is the bottleneck. Within the bottleneck, the verifier with the lowest average score identifies the specific weakness. For example, if the $\mathcal{A}$-subset is the bottleneck and RoutingVerifier scores lowest, the specification should adjust the action space to provide better routing tools or the scenario generator should produce more routing-focused training scenarios.
+
+**Stage 3** operates on verifier scores, not aggregate reward. It computes the minimum verifier score
+
+$$
+d_{\min} = \min_{i \in \{1, \ldots, 9\}} \text{verifier}_i
+$$
+
+across the 9 verifiers for the current batch and compares it against two thresholds $\theta_{\text{success}}$ and $\theta_{\text{failure}}$:
+
+- When $d_{\min} > \theta_{\text{success}}$: the system increases complexity using ACCEL (see Terminology #8), which mutates high-regret scenarios to compound difficulty.
+- When $d_{\min} < \theta_{\text{failure}}$: the system simplifies the bottleneck dimension using SFL (see Terminology #8), which selects levels with positive but imperfect solve rates.
+- When $\theta_{\text{failure}} \leq d_{\min} \leq \theta_{\text{success}}$: the agent is in the zone of proximal development (see Terminology #9). The system makes targeted refinements to the weakest verifier dimension while maintaining overall complexity.
+
+The updated specification $d'$ feeds back into Phase 1, closing the loop for automatic curriculum generation. This separation ensures that an agent cannot mask poor protocol compliance behind high outcome rewards.
 
 ## Implementation
 
@@ -146,7 +267,7 @@ For example, a deaf child in silent_mode triggers three guide_victim rows. Silen
 
 ### Environment
 
-The environment team builds the FastAPI server, Pydantic models, scenario generator, transition function, and Docker packaging. The deliverable is a server exposing `reset()`, `step(action)`, `state()`, `close()` inside a Docker container.
+The environment team builds the server, models, scenario generator, transition function, and Docker packaging. The server exposes `reset()`, `step(action)`, `state()`, `close()`.
 
 #### Action Model
 
@@ -205,7 +326,7 @@ The generator samples across 10 axes to produce unique episodes. Each episode re
 | concurrent_crises | 1 (single victim), 2-3 (must triage and prioritize), 5+ (mass casualty) |
 | threat_colocated | false, true (domestic violence, hostage, active shooter) |
 
-The full combinatorial space is approximately 10 × 6 × 7 × 100 × 4 × 4 × 4 × 4 × 3 × 2 = 64.5 million unique configurations. For the hackathon, reduce to 3 crisis types × 2 locations × 2 victims × 3 languages × 2 infrastructure levels = 72 configurations with the remaining 5 axes pinned (see Integration Contract for defaults).
+The full combinatorial space is approximately 10 × 6 × 7 × 100 × 4 × 4 × 4 × 4 × 3 × 2 = 64.5 million unique configurations. For the hackathon, minimal configuration is used, 3 crisis types × 2 locations × 2 victims × 3 languages × 2 infrastructure levels = 72 configurations.
 
 #### Escalation Scale
 
@@ -301,7 +422,7 @@ The complexity level controls which tools the agent can use. This table maps too
 | 4 | Level 3 + coordinate_responders, send_alert | Fixed scenario, 10 tools | All 11 tools, mass-casualty with infrastructure failure | Level 4 tools, Level 4 scenarios |
 | 5 | Level 4 + schema_probe (all 11 tools) | Fixed scenario, all 11 tools | All 11 tools, mass-casualty with schema drift and threat colocated | All tools, all scenarios |
 
-In Case 1, the scenario stays fixed while tools advance from 3 to 11. In Case 2, all 11 tools are available at every level while scenarios grow from single-victim English to mass-casualty multilingual. In Case 3, the verifier scoring rules stay fixed while both tools and scenarios grow together.
+In Case 1, the scenario stays fixed while tools advance from 3 to 11. In Case 2, all 11 tools are available at every level while scenarios grow from single victim English to mass casualty multilingual. In Case 3, the verifier scoring rules stay fixed while both tools and scenarios grow together.
 
 ### Rubric
 
@@ -427,7 +548,7 @@ flowchart TD
   gen["Phase 2: Environment Generation</br>Procedural content generation</br>Docker containers with deterministic seeds"]
   rollout["Agent Rollout</br>reset → step(action) → reward → repeat</br>GRPOTrainer + vLLM"]
   trajectory["Trajectory</br>h = (s₀, a₀, r₀, s₁, a₁, r₁, ..., sₜ)"]
-  eval["Phase 3: Oversight Analysis</br>Blackbox → Glassbox → Whitebox"]
+  eval["Phase 3: Verification</br>Blackbox → Glassbox → Whitebox"]
   rubric["Rubric Scoring</br>9 deterministic verifiers</br>No LLM judges"]
   memory["Prioritized Experience Buffer</br>Rubric-score-based replay</br>Per-verifier rolling averages"]
   osa["Phase 4: Specification Update</br>OSA Algorithm"]
