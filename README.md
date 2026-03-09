@@ -45,6 +45,17 @@
 
 ---
 
+---
+title: Patronet Emergency Environment Server
+emoji: 🚨
+colorFrom: red
+colorTo: blue
+sdk: docker
+app_port: 8000
+tags: [openenv, rl, grpo, fastapi]
+---
+<div align="center">
+
 ### ⚡ Quick start
 
 ```bash
@@ -61,16 +72,6 @@ with PatronetEmergencyEnv(base_url="http://localhost:8000") as env:
     obs = env.reset()
     obs, reward, done, info = env.step(action)
 ```
----
-title: Patronet Emergency Environment Server
-emoji: 🚨
-colorFrom: red
-colorTo: blue
-sdk: docker
-app_port: 8000
-tags: [openenv, rl, grpo, fastapi]
----
-
 ---
 
 ### 🔧 Actions & rewards (summary)
