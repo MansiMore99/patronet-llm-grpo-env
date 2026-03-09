@@ -44,18 +44,6 @@
 | `frontend/` | Web UI to run & visualize episodes |
 
 ---
-
----
-title: Patronet Emergency Environment Server
-emoji: 🚨
-colorFrom: red
-colorTo: blue
-sdk: docker
-app_port: 8000
-tags: [openenv, rl, grpo, fastapi]
----
-<div align="center">
-
 ### ⚡ Quick start
 
 ```bash
