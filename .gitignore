@@ -224,3 +224,7 @@ $RECYCLE.BIN/
 **/.astro
 
 */migration_backups
+
+# Local-only project files (do not push)
+OpenEnv Hackathon Technical content.pdf
+CLAUDE.md

@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Thumbnail — Patronet AI</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      width: 1280px;
+      height: 720px;
+      overflow: hidden;
+      background: #ffffff;
+      font-family: 'Inter', 'Arial Black', sans-serif;
+    }
+
+    /* ── bold left color slash ── */
+    .slash {
+      position: absolute;
+      top: 0; left: 0;
+      width: 520px; height: 100%;
+      background: linear-gradient(135deg, #ff2200 0%, #ff6600 60%, #ffaa00 100%);
+      clip-path: polygon(0 0, 88% 0, 100% 100%, 0 100%);
+      z-index: 0;
+    }
+
+    /* big bold 911 watermark in slash */
+    .slash-text {
+      position: absolute;
+      top: 50%; left: 20px;
+      transform: translateY(-50%);
+      font-size: 260px;
+      font-weight: 900;
+      color: rgba(255,255,255,0.08);
+      letter-spacing: -10px;
+      z-index: 1;
+      user-select: none;
+      line-height: 1;
+    }
+
+    /* ── left content (over slash) ── */
+    .left-content {
+      position: absolute;
+      top: 0; left: 0;
+      width: 500px; height: 100%;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 50px 40px 50px 52px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0,0,0,0.25);
+      border-radius: 4px;
+      padding: 5px 14px;
+      margin-bottom: 22px;
+      width: fit-content;
+    }
+    .tag-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 8px #fff;
+    }
+    .tag-text {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #ffffff;
+    }
+
+    .headline {
+      font-size: 76px;
+      font-weight: 900;
+      line-height: 0.92;
+      color: #ffffff;
+      letter-spacing: -2px;
+      text-shadow: 0 4px 24px rgba(0,0,0,0.2);
+      margin-bottom: 20px;
+    }
+    .headline .line2 {
+      color: #fff700;
+      -webkit-text-stroke: 1px rgba(0,0,0,0.15);
+    }
+
+    .desc {
+      font-size: 18px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.85);
+      line-height: 1.5;
+      margin-bottom: 30px;
+      max-width: 380px;
+    }
+
+    /* badge row */
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .badge {
+      padding: 5px 14px;
+      border-radius: 30px;
+      font-size: 13px;
+      font-weight: 800;
+      background: rgba(255,255,255,0.18);
+      color: #ffffff;
+      border: 1.5px solid rgba(255,255,255,0.4);
+      letter-spacing: 0.3px;
+    }
+
+    /* ── right white section ── */
+    .right-content {
+      position: absolute;
+      top: 0; right: 0;
+      width: 760px; height: 100%;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 40px 60px 40px 100px;
+      gap: 28px;
+    }
+
+    /* photo placeholder */
+    .photo-wrap {
+      position: relative;
+    }
+    .photo-circle {
+      width: 260px; height: 260px;
+      border-radius: 50%;
+      background: #f0f0f0;
+      border: 5px solid #ff3300;
+      box-shadow:
+        0 0 0 8px rgba(255,50,0,0.1),
+        0 20px 60px rgba(255,80,0,0.15);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      overflow: hidden;
+    }
+    .photo-icon { font-size: 64px; }
+    .photo-hint {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #bbbbbb;
+    }
+
+    /* floating fire badge on photo */
+    .photo-badge {
+      position: absolute;
+      bottom: 8px; right: -10px;
+      background: #ff3300;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 800;
+      padding: 6px 14px;
+      border-radius: 20px;
+      letter-spacing: 1px;
+      box-shadow: 0 4px 16px rgba(255,50,0,0.4);
+      white-space: nowrap;
+    }
+
+    /* stat pills */
+    .stats-row {
+      display: flex;
+      gap: 16px;
+    }
+    .stat-pill {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #fff5f0;
+      border: 2px solid #ffddcc;
+      border-radius: 16px;
+      padding: 14px 24px;
+      gap: 2px;
+      min-width: 110px;
+    }
+    .stat-num {
+      font-size: 34px;
+      font-weight: 900;
+      color: #ff3300;
+      line-height: 1;
+    }
+    .stat-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #999;
+    }
+
+    /* big call-to-action text */
+    .cta {
+      text-align: center;
+    }
+    .cta-main {
+      font-size: 36px;
+      font-weight: 900;
+      color: #111111;
+      letter-spacing: -1px;
+      line-height: 1.1;
+    }
+    .cta-main span {
+      color: #ff3300;
+    }
+    .cta-sub {
+      font-size: 16px;
+      font-weight: 600;
+      color: #888;
+      margin-top: 6px;
+      letter-spacing: 0.3px;
+    }
+
+    /* ── bottom strip ── */
+    .bottom-strip {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 7px;
+      background: linear-gradient(90deg, #ff2200, #ff7700, #ffcc00, #ff7700, #ff2200);
+      z-index: 10;
+    }
+
+    /* ── LIVE badge top-right ── */
+    .live-badge {
+      position: absolute;
+      top: 28px; right: 48px;
+      background: #ff2200;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      padding: 7px 18px;
+      border-radius: 6px;
+      z-index: 10;
+      box-shadow: 0 4px 20px rgba(255,30,0,0.4);
+    }
+
+    /* hackathon ribbon top-left of right panel */
+    .hackathon-tag {
+      position: absolute;
+      top: 28px;
+      left: 540px;
+      background: #111;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      padding: 6px 16px;
+      border-radius: 6px;
+      z-index: 10;
+      text-transform: uppercase;
+    }
+    .hackathon-tag span { color: #ff6600; }
+  </style>
+</head>
+<body>
+
+  <!-- color slash background -->
+  <div class="slash"></div>
+  <div class="slash-text">911</div>
+
+  <!-- LIVE badge -->
+  <div class="live-badge">🔴 DEMO</div>
+
+  <!-- hackathon tag -->
+  <div class="hackathon-tag">⚡ <span>PyTorch</span> Hackathon</div>
+
+  <!-- left content -->
+  <div class="left-content">
+    <div class="tag">
+      <div class="tag-dot"></div>
+      <span class="tag-text">AI · RL · Emergency</span>
+    </div>
+
+    <div class="headline">
+      AI SAVES<br>
+      <span class="line2">LIVES</span><br>
+      IN CRISIS
+    </div>
+
+    <div class="desc">
+      Reinforcement Learning agent trained to handle real emergencies — language barriers, routing, triage & more.
+    </div>
+
+    <div class="badges">
+      <span class="badge">🔥 OpenEnv</span>
+      <span class="badge">🧠 GRPO</span>
+      <span class="badge">⚡ LLM</span>
+      <span class="badge">✓ Verifiable Rewards</span>
+    </div>
+  </div>
+
+  <!-- right content -->
+  <div class="right-content">
+
+    <div class="cta">
+      <div class="cta-main">Watch AI Handle a<br><span>Burning House Crisis</span></div>
+      <div class="cta-sub">Bad trajectory vs. Good trajectory — side by side</div>
+    </div>
+
+    <div class="photo-wrap">
+      <div class="photo-circle">
+        <div class="photo-icon">👤</div>
+        <div class="photo-hint">Your Photo</div>
+      </div>
+      <div class="photo-badge">🚨 Builder</div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-pill">
+        <div class="stat-num">9</div>
+        <div class="stat-label">Configs</div>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-num">20</div>
+        <div class="stat-label">Steps</div>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-num">MDP</div>
+        <div class="stat-label">RL Env</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="bottom-strip"></div>
+
+</body>
+</html>

@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Patronet — Emergency Response AI</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      display: flex;
+      height: 100vh;
+      background: #07070f;
+      font-family: 'Courier New', monospace;
+      color: #c8d0e8;
+      overflow: hidden;
+    }
+
+    /* ── fade overlay ── */
+    #fade-overlay {
+      position: fixed; inset: 0;
+      background: #000; opacity: 0;
+      pointer-events: none; z-index: 200;
+      transition: opacity 0.4s ease;
+    }
+    #fade-overlay.on { opacity: 1; pointer-events: all; }
+
+    /* ══════════════════════════════════
+       LEFT PANEL  60%
+    ══════════════════════════════════ */
+    #left-panel {
+      width: 60%;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      border-right: 2px solid #111228;
+    }
+
+    /* ── slide-out config drawer ── */
+    #cfg-drawer {
+      position: absolute;
+      top: 0; left: 0;
+      width: 230px;
+      bottom: 270px;               /* clears status (20px) + dialogue (250px) */
+      background: rgba(5, 5, 16, 0.97);
+      border-right: 1px solid #1a1a40;
+      z-index: 40;
+      transform: translateX(-100%);
+      transition: transform 0.28s ease;
+      display: flex;
+      flex-direction: column;
+      padding: 14px 12px;
+      overflow-y: auto;
+    }
+    #cfg-drawer.open { transform: translateX(0); }
+
+    .drawer-title {
+      font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+      color: #2a3a7a; margin-bottom: 12px; padding-bottom: 8px;
+      border-bottom: 1px solid #111228; flex-shrink: 0;
+    }
+
+    .cfg-btn {
+      display: block; width: 100%;
+      margin-bottom: 6px; padding: 9px 11px;
+      background: #0b0b1e; border: 1px solid #1a1a38; border-radius: 3px;
+      color: #4d5e94; font-family: 'Courier New', monospace; font-size: 11px;
+      text-align: left; cursor: pointer; flex-shrink: 0;
+      transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+    }
+    .cfg-btn::before { content: '▸  '; color: #1e1e3a; }
+    .cfg-btn:hover   { background: #10102c; border-color: #304080; color: #8090c0; }
+    .cfg-btn.active  {
+      background: #0a1e0a; border-color: #22aa44;
+      color: #55ee88; box-shadow: 0 0 10px rgba(20,160,60,0.3);
+    }
+    .cfg-btn.active::before { content: '▶  '; color: #22aa44; }
+
+    /* hint shown after bad trajectory — inside drawer at bottom */
+    #cfg-hint {
+      display: none;
+      margin-top: auto;
+      padding: 10px 12px;
+      background: rgba(100, 10, 10, 0.5);
+      border: 1px solid #882222;
+      border-radius: 4px;
+      font-size: 11px;
+      line-height: 1.6;
+      color: #ff8888;
+      flex-shrink: 0;
+    }
+    #cfg-hint strong {
+      color: #ffbbbb;
+      display: block;
+      margin-bottom: 2px;
+      font-size: 10px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    #cfg-hint-name { color: #ffdd66; font-weight: bold; }
+
+    /* ── toggle arrow ── */
+    #cfg-toggle {
+      position: absolute; left: 0; top: 50%;
+      transform: translateY(-50%); z-index: 50;
+      width: 22px; height: 54px;
+      background: #0d0d28; border: 1px solid #1e1e44;
+      border-left: none; border-radius: 0 6px 6px 0;
+      color: #3a55aa; font-size: 13px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, color 0.15s; user-select: none;
+    }
+    #cfg-toggle:hover { background: #12123a; color: #6688dd; }
+    #cfg-toggle.open  { color: #66aaff; }
+
+    /* ── scene area ── */
+    #scene-wrap {
+      flex: 1; position: relative;
+      overflow: hidden; background: #060612;
+    }
+
+    /* trajectory banner */
+    #traj-banner {
+      position: absolute; top: 0; left: 0; right: 0;
+      z-index: 15;
+      padding: 10px 18px;
+      font-size: 12px; font-weight: bold;
+      letter-spacing: 1.5px; text-transform: uppercase;
+      display: none; align-items: center;
+    }
+    #traj-banner.traj-bad  {
+      background: rgba(110, 8, 8, 0.9);
+      color: #ffaaaa;
+      border-bottom: 1px solid #991111;
+    }
+    #traj-banner.traj-good {
+      background: rgba(8, 80, 20, 0.9);
+      color: #aaffcc;
+      border-bottom: 1px solid #117733;
+    }
+
+    /* scenes */
+    .scene {
+      position: absolute; inset: 0;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+    .scene.active { opacity: 1; pointer-events: all; }
+    .scene img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; display: block; }
+
+    #s-city { transition: opacity 0.5s ease, transform 0.8s ease; }
+
+    /* fire hotspot */
+    #fire-spot {
+      position: absolute; left: 74%; top: 58%;
+      width: 110px; height: 90px;
+      transform: translate(-50%, -50%);
+      cursor: pointer; z-index: 10;
+    }
+    .click-hint {
+      position: absolute; top: -20px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 9px; letter-spacing: 1px;
+      color: #ffe066; white-space: nowrap;
+      text-shadow: 0 0 6px #ff4400;
+      animation: blink-text 1.1s infinite;
+    }
+    @keyframes blink-text { 0%,100%{opacity:.8} 50%{opacity:.2} }
+
+    /* CSS fire */
+    .fire { position: relative; width: 56px; height: 64px; margin: 0 auto; pointer-events: none; }
+    .fire::before {
+      content: ''; position: absolute;
+      width: 38px; height: 52px; bottom: 0; left: 9px;
+      background: radial-gradient(ellipse at 50% 80%, #ff6a00 0%, #ff3300 50%, transparent 100%);
+      border-radius: 50% 50% 20% 20%; animation: flicker 0.45s infinite alternate;
+    }
+    .fire::after {
+      content: ''; position: absolute;
+      width: 22px; height: 36px; bottom: 4px; left: 17px;
+      background: radial-gradient(ellipse at 50% 80%, #ffe033 0%, #ff9900 60%, transparent 100%);
+      border-radius: 50% 50% 20% 20%; animation: flicker 0.45s 0.15s infinite alternate;
+    }
+    .fire .core {
+      display: block; position: absolute;
+      width: 10px; height: 20px; bottom: 8px; left: 23px;
+      background: radial-gradient(ellipse at 50% 80%, #fff8cc 0%, #ffe066 80%, transparent 100%);
+      border-radius: 50% 50% 20% 20%; animation: flicker 0.45s 0.28s infinite alternate;
+    }
+    .fire .smoke {
+      display: block; position: absolute;
+      width: 28px; height: 28px; bottom: 58px; left: 14px;
+      background: radial-gradient(ellipse, rgba(70,70,80,.55), transparent);
+      border-radius: 50%; animation: smoke-rise 1.4s infinite;
+    }
+    @keyframes flicker {
+      0%  { transform: scaleX(1.00) scaleY(1.00) translateX(0);   }
+      30% { transform: scaleX(0.88) scaleY(1.06) translateX(-2px); }
+      70% { transform: scaleX(1.08) scaleY(0.94) translateX(2px);  }
+      100%{ transform: scaleX(0.96) scaleY(1.08) translateX(0);   }
+    }
+    @keyframes smoke-rise {
+      0%  { transform: translateY(0)    scale(.7);  opacity: .5; }
+      100%{ transform: translateY(-32px) scale(1.6); opacity: 0;  }
+    }
+
+    /* room */
+    #room-inner { position: absolute; inset: 0; }
+    #room-inner img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+
+    /* ─────────────────────────────────────────────────────
+       TALKING INDICATORS
+       Victim = red character standing RIGHT of the fireplace
+               (~35% from left, ~38% from top of image)
+       Agent  = teal character in center of room
+               (~45% from left, ~57% from top of image)
+       If indicators appear offset, adjust left/top below.
+    ───────────────────────────────────────────────────── */
+    .talk-bubble {
+      position: absolute;
+      padding: 6px 14px;
+      border-radius: 14px 14px 14px 3px;
+      font-size: 14px; font-weight: bold;
+      letter-spacing: 0.5px; white-space: nowrap;
+      pointer-events: none; z-index: 30;
+      opacity: 0; transition: opacity 0.35s ease;
+      animation: talk-bob 0.75s ease-in-out infinite alternate;
+    }
+    .talk-bubble.visible { opacity: 1; }
+    @keyframes talk-bob {
+      from { transform: translateY(0); }
+      to   { transform: translateY(-8px); }
+    }
+
+    /* Victim — to the RIGHT of the fireplace, not on it */
+    #ind-victim {
+      left: 35%;      /* moved right of chimney (~22% was on chimney) */
+      top:  28%;
+      background: rgba(160, 45, 0, 0.93);
+      color: #fff0e6;
+      border: 1px solid #ff7733;
+    }
+
+    /* Agent — center of room */
+    #ind-agent {
+      left: 44%;
+      top:  48%;
+      background: rgba(0, 45, 140, 0.93);
+      color: #e6f0ff;
+      border: 1px solid #4488ff;
+    }
+
+    /* ── status bar ── */
+    #status-bar {
+      height: 20px; padding: 0 14px; line-height: 20px;
+      background: #050510;
+      font-size: 9px; letter-spacing: 1.2px; color: #2a3060;
+      flex-shrink: 0;
+    }
+
+    /* ── dialogue box ── */
+    #dialogue {
+      height: 250px;
+      background: rgba(3, 8, 32, 0.98);
+      border-top: 2px solid #1a44cc;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    #dlg-header {
+      padding: 7px 20px 6px;
+      font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+      color: #1a2d6a; border-bottom: 1px solid #0d1535;
+      flex-shrink: 0;
+    }
+    #dlg-scroll {
+      flex: 1;
+      padding: 12px 20px 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;   /* newest at bottom */
+      gap: 10px;
+      overflow: hidden;
+    }
+
+    /* ── conversation lines — LARGE TEXT ── */
+    .dlg-line {
+      animation: line-in 0.4s ease;
+      line-height: 1.45;
+    }
+    @keyframes line-in {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Speaker label */
+    .dlg-line .spk {
+      display: block;
+      font-size: 13px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      margin-bottom: 3px;
+      text-transform: uppercase;
+    }
+
+    /* Victim speech — large, warm orange */
+    .dlg-victim .spk { color: #ff7744; }
+    .dlg-victim       { color: #f5ddd0; font-size: 36px; }
+
+    /* Agent speech — large, blue */
+    .dlg-agent .spk   { color: #4499ff; }
+    .dlg-agent         { color: #d0e4ff; font-size: 36px; }
+
+    /* System note — small, subtle — not a character speaking */
+    .dlg-system .spk  { color: #666666; }
+    .dlg-system       { color: #888888; font-size: 13px; font-style: italic; }
+
+    /* slightly dim older message */
+    .dlg-line:first-child { opacity: 0.45; }
+    .dlg-line:last-child  { opacity: 1; }
+
+    /* ══════════════════════════════════
+       RIGHT PANEL  40%
+    ══════════════════════════════════ */
+    #right-panel {
+      width: 40%; display: flex; flex-direction: column;
+      background: #090914;
+    }
+    #r-header {
+      padding: 11px 16px; background: #060610;
+      border-bottom: 1px solid #111228;
+      display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+    }
+    .pulse {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #dd2222; box-shadow: 0 0 7px #ff3333;
+      animation: pulse-dot 1s infinite; flex-shrink: 0;
+    }
+    @keyframes pulse-dot {
+      0%,100%{opacity:1;box-shadow:0 0 7px #ff3333}
+      50%{opacity:.4;box-shadow:none}
+    }
+    #r-header span { font-size: 10px; letter-spacing: 2px; color: #cc2222; text-transform: uppercase; }
+
+    #metrics-section { padding: 16px; }
+    #metrics-title   { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #2a3a7a; }
+  </style>
+</head>
+<body>
+
+<div id="fade-overlay"></div>
+
+<!-- ══════════════════ LEFT PANEL 60% ══════════════════ -->
+<div id="left-panel">
+
+  <!-- slide-out config drawer -->
+  <div id="cfg-drawer">
+    <div class="drawer-title">Configuration</div>
+    <button class="cfg-btn" onclick="selectCfg(this,'triage_assess')">triage_assess</button>
+    <button class="cfg-btn" onclick="selectCfg(this,'route_responder')">route_responder</button>
+    <button class="cfg-btn" onclick="selectCfg(this,'translate')">translate</button>
+    <button class="cfg-btn" onclick="selectCfg(this,'silent_mode')">silent_mode</button>
+    <button class="cfg-btn" onclick="selectCfg(this,'translate_message')">translate_message</button>
+    <button class="cfg-btn" onclick="selectCfg(this,'guide_victim')">guide_victim</button>
+    <button class="cfg-btn" onclick="selectCfg(this,'send_alert')">send_alert</button>
+    <button class="cfg-btn" onclick="selectCfg(this,'coordinate_responders')">coordinate_responders</button>
+    <button class="cfg-btn" onclick="selectCfg(this,'fetch_location')">fetch_location</button>
+
+    <!-- hint appears after bad trajectory ends -->
+    <div id="cfg-hint">
+      <strong>⚠ Fix this scenario</strong>
+      Turn on "<span id="cfg-hint-name"></span>" to see how AI handles this correctly.
+    </div>
+  </div>
+
+  <!-- toggle arrow -->
+  <div id="cfg-toggle" onclick="toggleDrawer()">&#x276F;</div>
+
+  <!-- scene area -->
+  <div id="scene-wrap">
+
+    <div id="traj-banner"></div>
+
+    <!-- SCENE 1 · city -->
+    <div class="scene active" id="s-city">
+      <img src="../Images/pixel_city.png" alt="Pixel City" draggable="false">
+      <div id="fire-spot" onclick="onFireClick()">
+        <span class="click-hint">⚠ FIRE DETECTED — CLICK</span>
+        <div class="fire">
+          <span class="core"></span>
+          <span class="smoke"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCENE 2 · fire house aerial -->
+    <div class="scene" id="s-firehouse">
+      <img src="../Images/fire_house.png" alt="Fire House" draggable="false">
+    </div>
+
+    <!-- SCENE 3 · room interior -->
+    <div class="scene" id="s-room">
+      <div id="room-inner">
+        <img src="../Images/room_scene.png" alt="Room Scene" draggable="false">
+
+        <!-- Victim bubble: right of fireplace, above red character -->
+        <div id="ind-victim" class="talk-bubble">😰 Victim</div>
+
+        <!-- Agent bubble: above teal character in center of room -->
+        <div id="ind-agent"  class="talk-bubble">🤖 Agent</div>
+      </div>
+    </div>
+
+  </div><!-- /scene-wrap -->
+
+  <div id="status-bar">SCENE: PIXEL CITY &nbsp;|&nbsp; STATUS: MONITORING &nbsp;|&nbsp; STEP: 0 / 20</div>
+
+  <!-- dialogue box -->
+  <div id="dialogue">
+    <div id="dlg-header">Conversation Log</div>
+    <div id="dlg-scroll">
+      <div class="dlg-line dlg-system">
+        <span class="spk">⚙ System</span>Monitoring city grid. Fire signature detected.
+      </div>
+    </div>
+  </div>
+
+</div><!-- /left-panel -->
+
+<!-- ══════════════════ RIGHT PANEL 40% ══════════════════ -->
+<div id="right-panel">
+  <div id="r-header">
+    <div class="pulse"></div>
+    <span>Patronet Response AI</span>
+  </div>
+  <div id="metrics-section">
+    <div id="metrics-title">Live Metrics</div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
