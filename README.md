@@ -1,12 +1,3 @@
----
-title: Patronet Emergency Environment Server
-emoji: 🚨
-colorFrom: red
-colorTo: blue
-sdk: docker
-app_port: 8000
-tags: [openenv, rl, grpo, fastapi]
----
 
 <div align="center">
 
@@ -70,6 +61,15 @@ with PatronetEmergencyEnv(base_url="http://localhost:8000") as env:
     obs = env.reset()
     obs, reward, done, info = env.step(action)
 ```
+---
+title: Patronet Emergency Environment Server
+emoji: 🚨
+colorFrom: red
+colorTo: blue
+sdk: docker
+app_port: 8000
+tags: [openenv, rl, grpo, fastapi]
+---
 
 ---
 
@@ -125,12 +125,9 @@ with PatronetEmergencyEnv(base_url="http://localhost:8000") as env:
 
 ### 📚 More
 
-- **CLAUDE.md** — architecture, MDP details, reward breakdown, common commands.
 - **data/** — extend crisis types and triage questions via JSON; no code change needed for new scenarios.
 
 ---
-
-#### © 2026 Mansi More
 
 #### 📬 Let’s connect
 
